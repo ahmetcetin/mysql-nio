@@ -159,9 +159,17 @@ final class MySQLConnectionHandler: ChannelDuplexHandler {
         switch authPluginName {
         case "caching_sha2_password":
             let seed = authPluginData
-            hash = xor(sha256(password), sha256(sha256(sha256(password)), seed))
             saveSeed = seed.getBytes(at: 0, length: seed.readableBytes) ?? []
-            self.logger.trace("Generated scrambled hash for caching_sha2_password")
+            if password.readableBytes == 0 {
+                // No password: an empty response, as libmysqlclient sends. The server then answers OK for an account
+                // without a password, or ERR, at once. A scramble of the empty string made it ask for full
+                // authentication, which without TLS ended in "access denied" for an account without a password.
+                hash = .init()
+                self.logger.trace("Generated empty response for caching_sha2_password with empty password input")
+            } else {
+                hash = xor(sha256(password), sha256(sha256(sha256(password)), seed))
+                self.logger.trace("Generated scrambled hash for caching_sha2_password")
+            }
         case "mysql_native_password":
             if let passwordValue = passwordInput, !passwordValue.isEmpty {
                 var copy = authPluginData
