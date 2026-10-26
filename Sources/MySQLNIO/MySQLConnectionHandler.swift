@@ -26,6 +26,8 @@ final class MySQLConnectionHandler: ChannelDuplexHandler {
         let password: String?
         let tlsConfiguration: TLSConfiguration?
         let serverHostname: String?
+        /// When true, the handshake fails before any authentication bytes are sent unless TLS is set up.
+        let requireTLS: Bool
         let done: EventLoopPromise<Void>
     }
     
@@ -114,6 +116,10 @@ final class MySQLConnectionHandler: ChannelDuplexHandler {
             throw MySQLError.unsupportedServer(message: "Client protocol 4.1 required")
         }
         self.serverCapabilities = handshakeRequest.capabilities
+        if state.requireTLS, state.tlsConfiguration == nil || !handshakeRequest.capabilities.contains(.CLIENT_SSL) {
+            self.logger.trace("TLS required but the server does not offer it; no handshake response is sent")
+            throw MySQLError.secureConnectionRequired
+        }
         if let tlsConfiguration = state.tlsConfiguration, handshakeRequest.capabilities.contains(.CLIENT_SSL) {
             var capabilities = MySQLProtocol.CapabilityFlags.clientDefault
             capabilities.insert(.CLIENT_SSL)
