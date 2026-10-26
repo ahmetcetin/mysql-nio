@@ -11,6 +11,8 @@ public enum MySQLError: Error, CustomStringConvertible, LocalizedError {
     case protocolError
     case server(MySQLProtocol.ERR_Packet)
     case closed
+    /// The server sent a logical packet (one row, for example) larger than the client accepts.
+    case packetTooLarge(limit: Int)
     
     /// A uniqueness constraint was violated. Associated value is message from server with details.
     case duplicateEntry(String)
@@ -40,6 +42,8 @@ public enum MySQLError: Error, CustomStringConvertible, LocalizedError {
             return "Server error: \(error.errorMessage)"
         case .closed:
             return "Connection closed."
+        case .packetTooLarge(let limit):
+            return "The server sent a packet larger than \(limit) bytes."
         case .duplicateEntry(let message):
             return "Duplicate entry: \(message)"
         case .invalidSyntax(let message):

@@ -502,5 +502,9 @@ final class MySQLConnectionHandler: ChannelDuplexHandler {
                 current.promise.fail(error)
             }
         }
+        if case MySQLError.packetTooLarge = error {
+            // The rest of the packet is still on its way; the stream can't be resynchronised, so stop reading it.
+            context.close(mode: .all, promise: nil)
+        }
     }
 }

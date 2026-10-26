@@ -11,6 +11,7 @@ public final class MySQLConnection: MySQLDatabase, Sendable {
         password: String? = nil,
         tlsConfiguration: TLSConfiguration? = .makeClientConfiguration(),
         serverHostname: String? = nil,
+        maximumPacketSize: Int = MySQLPacketDecoder.defaultMaximumPacketSize,
         logger: Logger = .init(label: "codes.vapor.mysql"),
         on eventLoop: any EventLoop
     ) -> EventLoopFuture<MySQLConnection> {
@@ -29,7 +30,8 @@ public final class MySQLConnection: MySQLDatabase, Sendable {
                 try channel.pipeline.syncOperations.addHandlers([
                     ByteToMessageHandler(MySQLPacketDecoder(
                         sequence: sequence,
-                        logger: logger
+                        logger: logger,
+                        maximumPacketSize: maximumPacketSize
                     )),
                     MessageToByteHandler(MySQLPacketEncoder(
                         sequence: sequence,

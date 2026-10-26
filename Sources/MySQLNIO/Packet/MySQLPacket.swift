@@ -20,7 +20,9 @@ public struct MySQLPacket {
     }
     
     public var isEOF: Bool {
-        self.headerFlag == 0xFE
+        // A row whose first value is 2^24 bytes or longer also starts with 0xFE (an 8-byte length); an EOF or a
+        // closing OK packet is always shorter than one wire packet.
+        self.headerFlag == 0xFE && self.payload.readableBytes < 0xFF_FF_FF
     }
     
     var headerFlag: UInt8? {
