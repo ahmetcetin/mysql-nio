@@ -22,7 +22,13 @@ extension MySQLProtocol {
         public var orgName: String
         
         /// `character_set` (2) -- the column character set, defined in `Protocol::CharacterSet`.
+        /// Only the low byte of `collationID`, kept for source compatibility; use `collationID`.
         public var characterSet: CharacterSet
+
+        /// `character_set` (2) -- the collation id the values are sent in, all two bytes of it. The server sends the
+        /// session's collation for text, which can be above 255 (MySQL's `utf8mb4_0900_as_cs` is 278, MariaDB's
+        /// `uca1400` collations are above 2,000); 63 is `binary`.
+        public var collationID: UInt16
         
         /// `column_length` (4) -- maximum length of the field
         public var columnLength: UInt32
@@ -50,9 +56,8 @@ extension MySQLProtocol {
                   let orgName = packet.payload.readLengthEncodedString(),
                   /// `next_length` (`lenenc_int`) -- length of the following fields (always `0x0c`)
                   let fixedLength = packet.payload.readLengthEncodedInteger(), fixedLength == 0x0c,
-                  // TODO: check if character set > 255
-                  let characterSet = packet.payload.readInteger(endianness: .little, as: CharacterSet.self),
-                  let collate = packet.payload.readInteger(endianness: .little, as: UInt8.self), collate == 0,
+                  // Two bytes: a collation id above 255 is valid (upstream required the high byte to be 0).
+                  let collationID = packet.payload.readInteger(endianness: .little, as: UInt16.self),
                   let columnLength = packet.payload.readInteger(endianness: .little, as: UInt32.self),
                   let columnType = packet.payload.readInteger(endianness: .little, as: DataType.self),
                   let flags = packet.payload.readInteger(endianness: .little, as: ColumnFlags.self),
@@ -71,7 +76,8 @@ extension MySQLProtocol {
                 orgTable: orgTable,
                 name: name,
                 orgName: orgName,
-                characterSet: characterSet,
+                characterSet: CharacterSet(rawValue: UInt8(truncatingIfNeeded: collationID)),
+                collationID: collationID,
                 columnLength: columnLength,
                 columnType: columnType,
                 flags: flags,
